@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useReducer, useRef, ReactNode } from 'react';
+// Data is stored in localStorage — no server required
 
 // ── 型別定義 ──────────────────────────────────────────────
 export interface ItineraryItem {
@@ -108,64 +109,31 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | null>(null);
 
+const STORAGE_KEY = 'japan-travel-app-data';
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, defaultState);
-  const serverLoaded  = useRef(false);
-  const isServerUpdate = useRef(false);
-  const lastSyncedAt  = useRef<number>(0);
+  const loaded = useRef(false);
 
-  // 啟動時從伺服器載入
+  // 啟動時從 localStorage 載入
   useEffect(() => {
-    fetch('/api/data')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.state) {
-          isServerUpdate.current = true;
-          dispatch({ type: 'LOAD_STATE', payload: data.state });
-          lastSyncedAt.current = data.lastModified;
-        }
-        serverLoaded.current = true;
-      })
-      .catch(() => { serverLoaded.current = true; });
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data) dispatch({ type: 'LOAD_STATE', payload: data });
+      }
+    } catch {}
+    loaded.current = true;
   }, []);
 
-  // 每次 state 變化 → 同步至伺服器
+  // state 變化 → 儲存到 localStorage
   useEffect(() => {
-    if (!serverLoaded.current) return;
-    if (isServerUpdate.current) {
-      isServerUpdate.current = false;
-      return;
-    }
-    const timer = setTimeout(() => {
-      fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(state),
-      })
-        .then((r) => r.json())
-        .then((data) => { lastSyncedAt.current = data.lastModified; })
-        .catch(() => {});
-    }, 500);
-    return () => clearTimeout(timer);
+    if (!loaded.current) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch {}
   }, [state]);
-
-  // 每 5 秒輪詢，同步其他家人的變更
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!serverLoaded.current) return;
-      fetch('/api/data')
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.lastModified > lastSyncedAt.current) {
-            lastSyncedAt.current = data.lastModified;
-            isServerUpdate.current = true;
-            dispatch({ type: 'LOAD_STATE', payload: data.state });
-          }
-        })
-        .catch(() => {});
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
 
   return <AppContext.Provider value={{ state, dispatch }}>{children}</AppContext.Provider>;
 }
