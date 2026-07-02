@@ -9,6 +9,7 @@ export interface ExpenseItem {
   amount: number;
   currency: 'JPY' | 'TWD';
   paymentMethod: 'cash' | 'credit';
+  txRate?: number;
   note: string;
 }
 

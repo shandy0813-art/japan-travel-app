@@ -22,24 +22,35 @@ export default function AccountingPage() {
     amount: '',
     currency: 'JPY' as 'JPY' | 'TWD',
     paymentMethod: 'cash' as 'cash' | 'credit',
+    txRate: '',
     note: '',
   });
 
   const { exchangeRate } = state.settings;
 
-  function toJPY(e: ExpenseItem) {
-    return e.currency === 'JPY' ? e.amount : e.amount / exchangeRate;
+  function getRate(e: ExpenseItem) {
+    return e.txRate ?? exchangeRate;
   }
 
-  const cashExpenses   = state.expenses.filter((e) => e.paymentMethod === 'credit' ? false : true);
+  function toTWD(e: ExpenseItem) {
+    if (e.currency === 'TWD') return e.amount;
+    return e.amount * getRate(e);
+  }
+
+  function toJPY(e: ExpenseItem) {
+    if (e.currency === 'JPY') return e.amount;
+    return e.amount / getRate(e);
+  }
+
+  const cashExpenses   = state.expenses.filter((e) => e.paymentMethod !== 'credit');
   const creditExpenses = state.expenses.filter((e) => e.paymentMethod === 'credit');
 
-  const totalAll    = state.expenses.reduce((s, e) => s + toJPY(e), 0);
-  const totalCash   = cashExpenses.reduce((s, e) => s + toJPY(e), 0);
-  const totalCredit = creditExpenses.reduce((s, e) => s + toJPY(e), 0);
+  const totalCashTWD   = cashExpenses.reduce((s, e) => s + toTWD(e), 0);
+  const totalCreditTWD = creditExpenses.reduce((s, e) => s + toTWD(e), 0);
+  const totalTWD       = totalCashTWD + totalCreditTWD;
 
-  const displayed = filter === 'all'   ? state.expenses
-                  : filter === 'cash'  ? cashExpenses
+  const displayed = filter === 'all'    ? state.expenses
+                  : filter === 'cash'   ? cashExpenses
                   : creditExpenses;
   const sorted = [...displayed].sort((a, b) => b.date.localeCompare(a.date));
 
@@ -53,13 +64,18 @@ export default function AccountingPage() {
       currency: form.currency,
       paymentMethod: form.paymentMethod,
       note: form.note,
+      ...(form.paymentMethod === 'credit' && form.currency === 'JPY' && form.txRate
+        ? { txRate: parseFloat(form.txRate) }
+        : {}),
     };
     dispatch({ type: 'ADD_EXPENSE', payload: item });
-    setForm({ ...form, amount: '', note: '' });
+    setForm({ ...form, amount: '', note: '', txRate: '' });
     setShowForm(false);
   }
 
-  const fmt = (jpy: number) => Math.round(jpy).toLocaleString();
+  const fmt = (n: number) => Math.round(n).toLocaleString();
+
+  const showTxRateField = form.paymentMethod === 'credit' && form.currency === 'JPY';
 
   return (
     <div className="min-h-full">
@@ -67,7 +83,7 @@ export default function AccountingPage() {
       <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
         <div>
           <h1 className="text-lg font-bold text-gray-900">旅遊記帳</h1>
-          <p className="text-xs text-gray-400">匯率 1 JPY ≈ {exchangeRate} TWD</p>
+          <p className="text-xs text-gray-400">預設匯率 1 JPY ≈ {exchangeRate} TWD</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
@@ -77,17 +93,16 @@ export default function AccountingPage() {
 
       {/* 總計卡片 */}
       <div className="mx-4 mt-4 bg-red-600 rounded-2xl p-4 text-white">
-        <div className="text-xs opacity-80 mb-1">總花費</div>
-        <div className="text-2xl font-bold">¥ {fmt(totalAll)}</div>
-        <div className="text-sm opacity-80 mt-0.5">≈ NT$ {fmt(totalAll * exchangeRate)}</div>
+        <div className="text-xs opacity-80 mb-1">總花費（台幣）</div>
+        <div className="text-2xl font-bold">NT$ {fmt(totalTWD)}</div>
         <div className="flex gap-4 mt-3 pt-3 border-t border-white/20">
           <div>
             <div className="text-xs opacity-70">💵 現金</div>
-            <div className="text-sm font-semibold">¥ {fmt(totalCash)}</div>
+            <div className="text-sm font-semibold">NT$ {fmt(totalCashTWD)}</div>
           </div>
           <div>
             <div className="text-xs opacity-70">💳 信用卡</div>
-            <div className="text-sm font-semibold">¥ {fmt(totalCredit)}</div>
+            <div className="text-sm font-semibold">NT$ {fmt(totalCreditTWD)}</div>
           </div>
         </div>
       </div>
@@ -149,6 +164,28 @@ export default function AccountingPage() {
             </select>
           </div>
 
+          {/* 信用卡當時匯率 */}
+          {showTxRateField && (
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">
+                當時匯率（選填，不填用預設 {exchangeRate}）
+              </label>
+              <input
+                type="number"
+                step="0.001"
+                placeholder={`例：${exchangeRate}`}
+                value={form.txRate}
+                onChange={(e) => setForm({ ...form, txRate: e.target.value })}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+              />
+              {form.amount && (
+                <p className="text-xs text-gray-400 mt-1">
+                  ≈ NT$ {fmt(Number(form.amount) * (parseFloat(form.txRate) || exchangeRate))}
+                </p>
+              )}
+            </div>
+          )}
+
           <input placeholder="備註（選填）" value={form.note}
             onChange={(e) => setForm({ ...form, note: e.target.value })}
             className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" />
@@ -186,6 +223,9 @@ export default function AccountingPage() {
                 {item.note && (
                   <div className="text-sm text-gray-700 mt-1 truncate">{item.note}</div>
                 )}
+                {item.txRate && item.currency === 'JPY' && (
+                  <div className="text-xs text-blue-400 mt-0.5">匯率 {item.txRate}</div>
+                )}
               </div>
               <div className="text-right shrink-0">
                 <div className="font-semibold text-gray-800 text-sm">
@@ -193,7 +233,7 @@ export default function AccountingPage() {
                 </div>
                 {item.currency === 'JPY' && (
                   <div className="text-xs text-gray-400">
-                    ≈ NT$ {Math.round(item.amount * exchangeRate).toLocaleString()}
+                    ≈ NT$ {fmt(toTWD(item))}
                   </div>
                 )}
               </div>
