@@ -4,6 +4,6 @@ import { useRouter } from 'next/navigation';
 
 export default function Home() {
   const router = useRouter();
-  useEffect(() => { router.replace('/itinerary'); }, [router]);
+  useEffect(() => { router.replace('/accounting'); }, [router]);
   return null;
 }

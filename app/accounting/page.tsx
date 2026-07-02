@@ -10,23 +10,38 @@ function genId() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+type Filter = 'all' | 'cash' | 'credit';
+
 export default function AccountingPage() {
   const { state, dispatch } = useApp();
   const [showForm, setShowForm] = useState(false);
+  const [filter, setFilter] = useState<Filter>('all');
   const [form, setForm] = useState({
     date: new Date().toISOString().slice(0, 10),
     category: '餐飲',
     amount: '',
     currency: 'JPY' as 'JPY' | 'TWD',
+    paymentMethod: 'cash' as 'cash' | 'credit',
     note: '',
   });
 
   const { exchangeRate } = state.settings;
-  const sorted = [...state.expenses].sort((a, b) => b.date.localeCompare(a.date));
 
-  const totalJPY = state.expenses.reduce((sum, e) =>
-    sum + (e.currency === 'JPY' ? e.amount : e.amount / exchangeRate), 0);
-  const totalTWD = totalJPY * exchangeRate;
+  function toJPY(e: ExpenseItem) {
+    return e.currency === 'JPY' ? e.amount : e.amount / exchangeRate;
+  }
+
+  const cashExpenses   = state.expenses.filter((e) => e.paymentMethod === 'credit' ? false : true);
+  const creditExpenses = state.expenses.filter((e) => e.paymentMethod === 'credit');
+
+  const totalAll    = state.expenses.reduce((s, e) => s + toJPY(e), 0);
+  const totalCash   = cashExpenses.reduce((s, e) => s + toJPY(e), 0);
+  const totalCredit = creditExpenses.reduce((s, e) => s + toJPY(e), 0);
+
+  const displayed = filter === 'all'   ? state.expenses
+                  : filter === 'cash'  ? cashExpenses
+                  : creditExpenses;
+  const sorted = [...displayed].sort((a, b) => b.date.localeCompare(a.date));
 
   function handleAdd() {
     if (!form.amount || isNaN(Number(form.amount))) return;
@@ -36,6 +51,7 @@ export default function AccountingPage() {
       category: form.category,
       amount: Number(form.amount),
       currency: form.currency,
+      paymentMethod: form.paymentMethod,
       note: form.note,
     };
     dispatch({ type: 'ADD_EXPENSE', payload: item });
@@ -43,8 +59,7 @@ export default function AccountingPage() {
     setShowForm(false);
   }
 
-  const toTWD = (e: ExpenseItem) =>
-    e.currency === 'JPY' ? (e.amount * exchangeRate).toFixed(0) : e.amount.toFixed(0);
+  const fmt = (jpy: number) => Math.round(jpy).toLocaleString();
 
   return (
     <div className="min-h-full">
@@ -57,16 +72,35 @@ export default function AccountingPage() {
         <button
           onClick={() => setShowForm(true)}
           className="w-9 h-9 bg-red-600 text-white rounded-full flex items-center justify-center text-xl leading-none"
-        >
-          +
-        </button>
+        >+</button>
       </div>
 
       {/* 總計卡片 */}
       <div className="mx-4 mt-4 bg-red-600 rounded-2xl p-4 text-white">
         <div className="text-xs opacity-80 mb-1">總花費</div>
-        <div className="text-2xl font-bold">¥ {Math.round(totalJPY).toLocaleString()}</div>
-        <div className="text-sm opacity-80 mt-0.5">≈ NT$ {Math.round(totalTWD).toLocaleString()}</div>
+        <div className="text-2xl font-bold">¥ {fmt(totalAll)}</div>
+        <div className="text-sm opacity-80 mt-0.5">≈ NT$ {fmt(totalAll * exchangeRate)}</div>
+        <div className="flex gap-4 mt-3 pt-3 border-t border-white/20">
+          <div>
+            <div className="text-xs opacity-70">💵 現金</div>
+            <div className="text-sm font-semibold">¥ {fmt(totalCash)}</div>
+          </div>
+          <div>
+            <div className="text-xs opacity-70">💳 信用卡</div>
+            <div className="text-sm font-semibold">¥ {fmt(totalCredit)}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* 篩選 Tab */}
+      <div className="mx-4 mt-3 flex bg-gray-100 rounded-xl p-1 gap-1">
+        {([['all', '全部'], ['cash', '現金'], ['credit', '信用卡']] as [Filter, string][]).map(([key, label]) => (
+          <button key={key} onClick={() => setFilter(key)}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors
+              ${filter === key ? 'bg-white text-red-600 shadow-sm' : 'text-gray-500'}`}>
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* 新增表單 */}
@@ -76,16 +110,33 @@ export default function AccountingPage() {
           <input type="date" value={form.date}
             onChange={(e) => setForm({ ...form, date: e.target.value })}
             className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" />
-          <div className="flex gap-2">
+
+          {/* 類別 */}
+          <div className="flex flex-wrap gap-1.5">
             {CATEGORIES.map((c) => (
-              <button key={c}
-                onClick={() => setForm({ ...form, category: c })}
-                className={`flex-1 text-xs py-1.5 rounded-lg font-medium transition-colors
+              <button key={c} onClick={() => setForm({ ...form, category: c })}
+                className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors
                   ${form.category === c ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
                 {c}
               </button>
             ))}
           </div>
+
+          {/* 付款方式 */}
+          <div className="flex gap-2">
+            <button onClick={() => setForm({ ...form, paymentMethod: 'cash' })}
+              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors
+                ${form.paymentMethod === 'cash' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+              💵 現金
+            </button>
+            <button onClick={() => setForm({ ...form, paymentMethod: 'credit' })}
+              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors
+                ${form.paymentMethod === 'credit' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+              💳 信用卡
+            </button>
+          </div>
+
+          {/* 金額 */}
           <div className="flex gap-2">
             <input type="number" placeholder="金額" value={form.amount}
               onChange={(e) => setForm({ ...form, amount: e.target.value })}
@@ -97,18 +148,16 @@ export default function AccountingPage() {
               <option value="TWD">TWD NT$</option>
             </select>
           </div>
+
           <input placeholder="備註（選填）" value={form.note}
             onChange={(e) => setForm({ ...form, note: e.target.value })}
             className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+
           <div className="flex gap-2">
             <button onClick={handleAdd}
-              className="flex-1 bg-red-600 text-white rounded-xl py-2 text-sm font-medium">
-              新增
-            </button>
+              className="flex-1 bg-red-600 text-white rounded-xl py-2 text-sm font-medium">新增</button>
             <button onClick={() => setShowForm(false)}
-              className="flex-1 bg-gray-100 text-gray-600 rounded-xl py-2 text-sm font-medium">
-              取消
-            </button>
+              className="flex-1 bg-gray-100 text-gray-600 rounded-xl py-2 text-sm font-medium">取消</button>
           </div>
         </div>
       )}
@@ -124,6 +173,9 @@ export default function AccountingPage() {
           sorted.map((item) => (
             <div key={item.id}
               className="bg-white rounded-xl p-3.5 shadow-sm border border-gray-100 flex items-center gap-3">
+              <div className="text-lg leading-none">
+                {item.paymentMethod === 'credit' ? '💳' : '💵'}
+              </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded-full font-medium">
@@ -140,14 +192,14 @@ export default function AccountingPage() {
                   {item.currency === 'JPY' ? '¥' : 'NT$'} {item.amount.toLocaleString()}
                 </div>
                 {item.currency === 'JPY' && (
-                  <div className="text-xs text-gray-400">≈ NT$ {toTWD(item)}</div>
+                  <div className="text-xs text-gray-400">
+                    ≈ NT$ {Math.round(item.amount * exchangeRate).toLocaleString()}
+                  </div>
                 )}
               </div>
               <button
                 onClick={() => dispatch({ type: 'DELETE_EXPENSE', payload: item.id })}
-                className="text-gray-300 hover:text-red-400 text-lg leading-none">
-                ×
-              </button>
+                className="text-gray-300 hover:text-red-400 text-lg leading-none">×</button>
             </div>
           ))
         )}
