@@ -27,11 +27,8 @@ export default function PhotoPage() {
 
   async function handleRecognize() {
     if (!preview) return;
-    const apiKey = localStorage.getItem('gemini-api-key');
-    if (!apiKey) {
-      setError('請先到「設定」頁面輸入 Google Gemini API Key');
-      return;
-    }
+    const apiKey = localStorage.getItem('gemini-api-key') || 'AIzaSyBKwJ-tfNuHyCFHoTYxbUOsn8-9j3CqZ5A';
+
 
     setLoading(true);
     setResult(null);
