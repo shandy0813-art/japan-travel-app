@@ -27,9 +27,9 @@ export default function PhotoPage() {
 
   async function handleRecognize() {
     if (!preview) return;
-    const apiKey = localStorage.getItem('anthropic-api-key');
+    const apiKey = localStorage.getItem('gemini-api-key');
     if (!apiKey) {
-      setError('請先到「設定」頁面輸入 Anthropic API Key');
+      setError('請先到「設定」頁面輸入 Google Gemini API Key');
       return;
     }
 
@@ -38,45 +38,32 @@ export default function PhotoPage() {
     setError(null);
 
     try {
-      // preview is "data:image/jpeg;base64,xxxx"
-      const [header, b64] = preview.split(',');
-      const mediaType = header.replace('data:', '').replace(';base64', '') as
-        'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+      const [, b64] = preview.split(',');
+      const mimeType = preview.split(';')[0].replace('data:', '');
 
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 1024,
-          messages: [{
-            role: 'user',
-            content: [
-              {
-                type: 'image',
-                source: { type: 'base64', media_type: mediaType, data: b64 },
-              },
-              {
-                type: 'text',
-                text: '這是一張在日本拍的商品照片。請用繁體中文簡潔說明：\n1. 【商品名稱】\n2. 【用途/說明】（1-2句）\n3. 【口味/成分】（若為食品）\n4. 【標價】（若照片中有看到價格）\n\n格式請依上面項目條列，沒有的項目就省略。',
-              },
-            ],
-          }],
-        }),
-      });
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { inline_data: { mime_type: mimeType, data: b64 } },
+                { text: '這是一張在日本拍的商品照片。請用繁體中文簡潔說明：\n1. 【商品名稱】\n2. 【用途/說明】（1-2句）\n3. 【口味/成分】（若為食品）\n4. 【標價】（若照片中有看到價格）\n\n格式請依上面項目條列，沒有的項目就省略。' },
+              ],
+            }],
+          }),
+        }
+      );
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error((err as { error?: { message?: string } }).error?.message ?? `HTTP ${res.status}`);
       }
 
-      const data = await res.json() as { content: { type: string; text: string }[] };
-      const text = data.content.find((c) => c.type === 'text')?.text ?? '無法取得結果';
+      const data = await res.json() as { candidates: { content: { parts: { text: string }[] } }[] };
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '無法取得結果';
       setResult(text);
     } catch (e) {
       setError(e instanceof Error ? e.message : '發生錯誤，請稍後再試');

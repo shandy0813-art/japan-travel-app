@@ -12,7 +12,7 @@ export default function SettingsPage() {
   const [saved, setSaved]         = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem('anthropic-api-key') ?? '';
+    const stored = localStorage.getItem('gemini-api-key') ?? '';
     setApiKey(stored);
   }, []);
 
@@ -21,7 +21,7 @@ export default function SettingsPage() {
       type: 'UPDATE_SETTINGS',
       payload: { exchangeRate: parseFloat(rateInput) || 0.22 },
     });
-    localStorage.setItem('anthropic-api-key', apiKey.trim());
+    localStorage.setItem('gemini-api-key', apiKey.trim());
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -59,13 +59,13 @@ export default function SettingsPage() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3">
           <h2 className="font-semibold text-gray-800">拍照辨識 API Key</h2>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Anthropic API Key</label>
+            <label className="text-xs text-gray-500 mb-1 block">Google Gemini API Key</label>
             <div className="relative">
               <input
                 type={showKey ? 'text' : 'password'}
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder="sk-ant-..."
+                placeholder="AIza..."
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm pr-10"
               />
               <button
