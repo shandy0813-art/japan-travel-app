@@ -42,28 +42,28 @@ const PHRASEBOOK = [
 
 const EMERGENCY = [
   {
-    title: '日本緊急電話',
-    color: 'red',
+    title: '🚨 日本緊急電話',
+    bg: 'bg-rose-50', border: 'border-rose-100', titleColor: 'text-rose-500',
     items: [
       { label: '警察', value: '110', note: '遇到犯罪、事故' },
       { label: '救護車 / 消防', value: '119', note: '受傷、火災、急病' },
     ],
   },
   {
-    title: '台灣官方聯絡',
-    color: 'blue',
+    title: '🇹🇼 台灣官方聯絡',
+    bg: 'bg-sky-50', border: 'border-sky-100', titleColor: 'text-sky-500',
     items: [
       { label: '外交部急難救助（24小時）', value: '0800-085-095', note: '從台灣撥打' },
       { label: '外交部急難救助（海外）', value: '+886-800-085-095', note: '從日本撥打' },
-      { label: '台北駐日經濟文化代表處（東京）', value: '+81-3-3280-7811', note: '週一至週五辦公時間' },
+      { label: '台北駐日代表處（東京）', value: '+81-3-3280-7811', note: '週一至週五辦公時間' },
       { label: '台灣駐大阪辦事處', value: '+81-6-6443-8481', note: '關西地區' },
       { label: '台灣駐福岡辦事處', value: '+81-92-771-2421', note: '九州地區' },
       { label: '台灣駐札幌辦事處', value: '+81-11-222-2930', note: '北海道地區' },
     ],
   },
   {
-    title: '實用提醒',
-    color: 'yellow',
+    title: '📋 實用提醒',
+    bg: 'bg-amber-50', border: 'border-amber-100', titleColor: 'text-amber-600',
     items: [
       { label: '護照遺失', value: '', note: '立刻到最近警察局報案，取得報案證明後聯繫代表處補發' },
       { label: '信用卡遺失', value: '', note: '致電銀行客服掛失，各銀行背面均有海外客服號碼' },
@@ -81,11 +81,9 @@ export default function ToolsPage() {
   const filtered = search
     ? PHRASEBOOK.map((cat) => ({
         ...cat,
-        items: cat.items.filter(
-          (i) =>
-            i.zh.includes(search) ||
-            i.jp.includes(search) ||
-            i.romaji.toLowerCase().includes(search.toLowerCase())
+        items: cat.items.filter((i) =>
+          i.zh.includes(search) || i.jp.includes(search) ||
+          i.romaji.toLowerCase().includes(search.toLowerCase())
         ),
       })).filter((cat) => cat.items.length > 0)
     : PHRASEBOOK;
@@ -100,22 +98,17 @@ export default function ToolsPage() {
   return (
     <div className="min-h-full">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-4 pt-3 pb-0">
-        <h1 className="text-lg font-bold text-gray-900 mb-2">工具</h1>
-        {/* 分頁切換 */}
+      <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm border-b border-stone-100 px-4 pt-3 pb-0">
+        <h1 className="text-lg font-bold text-stone-700 mb-2">翻譯工具 🗾</h1>
         <div className="flex">
-          <button
-            onClick={() => setTab('phrases')}
+          <button onClick={() => setTab('phrases')}
             className={`flex-1 py-2 text-sm font-medium border-b-2 transition-colors
-              ${tab === 'phrases' ? 'border-red-600 text-red-600' : 'border-transparent text-gray-400'}`}
-          >
+              ${tab === 'phrases' ? 'border-[#c47a7a] text-[#c47a7a]' : 'border-transparent text-stone-400'}`}>
             日文速查
           </button>
-          <button
-            onClick={() => setTab('emergency')}
+          <button onClick={() => setTab('emergency')}
             className={`flex-1 py-2 text-sm font-medium border-b-2 transition-colors
-              ${tab === 'emergency' ? 'border-red-600 text-red-600' : 'border-transparent text-gray-400'}`}
-          >
+              ${tab === 'emergency' ? 'border-[#c47a7a] text-[#c47a7a]' : 'border-transparent text-stone-400'}`}>
             緊急資訊
           </button>
         </div>
@@ -125,39 +118,33 @@ export default function ToolsPage() {
       {tab === 'phrases' && (
         <div>
           <div className="px-4 pt-3 pb-1">
-            <input
-              type="search"
-              placeholder="搜尋中文、日文或羅馬拼音…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-gray-100 rounded-xl px-4 py-2 text-sm outline-none"
-            />
+            <input type="search" placeholder="搜尋中文、日文或羅馬拼音…"
+              value={search} onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-stone-100 rounded-xl px-4 py-2 text-sm outline-none text-stone-700" />
           </div>
-          <div className="px-4 py-3 space-y-3">
+          <div className="px-4 py-3 space-y-2">
             {filtered.map((cat) => (
               <div key={cat.category}
-                className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
                 <button
                   onClick={() => setOpen(openCategory === cat.category ? null : cat.category)}
-                  className="w-full flex items-center justify-between px-4 py-3"
-                >
-                  <span className="font-semibold text-gray-800 text-sm">{cat.category}</span>
-                  <span className={`text-gray-400 transition-transform text-xs
+                  className="w-full flex items-center justify-between px-4 py-3">
+                  <span className="font-semibold text-stone-700 text-sm">{cat.category}</span>
+                  <span className={`text-stone-400 transition-transform text-xs
                     ${openCategory === cat.category ? 'rotate-180' : ''}`}>▼</span>
                 </button>
                 {openCategory === cat.category && (
-                  <div className="divide-y divide-gray-50">
+                  <div className="divide-y divide-stone-50">
                     {cat.items.map((item) => (
                       <div key={item.jp} className="px-4 py-3">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
-                            <div className="font-medium text-gray-900 text-base">{item.jp}</div>
-                            <div className="text-xs text-gray-400 mt-0.5">{item.romaji}</div>
-                            <div className="text-sm text-red-600 mt-0.5">{item.zh}</div>
+                            <div className="font-medium text-stone-800 text-base">{item.jp}</div>
+                            <div className="text-xs text-stone-400 mt-0.5">{item.romaji}</div>
+                            <div className="text-sm text-[#c47a7a] mt-0.5">{item.zh}</div>
                           </div>
-                          <button
-                            onClick={() => copy(item.jp)}
-                            className="shrink-0 text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-lg">
+                          <button onClick={() => copy(item.jp)}
+                            className="shrink-0 text-xs bg-stone-100 text-stone-500 px-2 py-1 rounded-lg">
                             {copied === item.jp ? '✓' : '複製'}
                           </button>
                         </div>
@@ -168,7 +155,7 @@ export default function ToolsPage() {
               </div>
             ))}
             {filtered.length === 0 && (
-              <div className="text-center py-12 text-gray-400">
+              <div className="text-center py-12 text-stone-400">
                 <div className="text-5xl mb-3">🔍</div>
                 <p className="text-sm">找不到相關句型</p>
               </div>
@@ -182,34 +169,23 @@ export default function ToolsPage() {
         <div className="px-4 py-4 space-y-4">
           {EMERGENCY.map((section) => (
             <div key={section.title}
-              className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className={`px-4 py-2.5 border-b border-gray-100
-                ${section.color === 'red' ? 'bg-red-50' :
-                  section.color === 'blue' ? 'bg-blue-50' : 'bg-yellow-50'}`}>
-                <span className={`text-xs font-bold
-                  ${section.color === 'red' ? 'text-red-600' :
-                    section.color === 'blue' ? 'text-blue-600' : 'text-yellow-700'}`}>
-                  {section.title}
-                </span>
+              className={`bg-white rounded-2xl shadow-sm border overflow-hidden ${section.border}`}>
+              <div className={`px-4 py-2.5 border-b ${section.bg} ${section.border}`}>
+                <span className={`text-xs font-bold ${section.titleColor}`}>{section.title}</span>
               </div>
               {section.items.map((item) => (
-                <div key={item.label}
-                  className="px-4 py-3 border-b border-gray-50 last:border-0">
-                  <div className="text-xs text-gray-500 mb-0.5">{item.label}</div>
-                  {item.value ? (
+                <div key={item.label} className="px-4 py-3 border-b border-stone-50 last:border-0">
+                  <div className="text-xs text-stone-400 mb-0.5">{item.label}</div>
+                  {item.value && (
                     <a href={`tel:${item.value.replace(/-/g, '')}`}
-                      className="text-base font-bold text-red-600">
-                      {item.value}
-                    </a>
-                  ) : null}
-                  <div className="text-xs text-gray-400 mt-0.5">{item.note}</div>
+                      className="text-base font-bold text-[#c47a7a]">{item.value}</a>
+                  )}
+                  <div className="text-xs text-stone-400 mt-0.5">{item.note}</div>
                 </div>
               ))}
             </div>
           ))}
-          <p className="text-center text-xs text-gray-400 pb-2">
-            出發前請確認最新代表處電話
-          </p>
+          <p className="text-center text-xs text-stone-400 pb-2">出發前請確認最新代表處電話</p>
         </div>
       )}
     </div>

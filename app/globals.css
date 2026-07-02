@@ -2,8 +2,10 @@
 
 :root {
   --nav-height: 64px;
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fdf8f5;
+  --foreground: #3d2f2f;
+  --primary: #c47a7a;
+  --primary-light: #f9eaea;
 }
 
 @theme inline {

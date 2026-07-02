@@ -24,13 +24,13 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#dc2626',
+  themeColor: '#c47a7a',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh-TW" className="h-full">
-      <body className="h-full bg-gray-50">
+      <body className="h-full bg-[#fdf8f5]">
         <AppProvider>
           <main className="page-scroll pb-[var(--nav-height)]">
             {children}
