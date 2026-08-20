@@ -6,12 +6,14 @@ import { useApp } from '../context/AppContext';
 export default function SettingsPage() {
   const { state, dispatch } = useApp();
   const { settings } = state;
-  const [rateInput, setRateInput]         = useState(String(settings.exchangeRate));
-  const [budgetInput, setBudgetInput]     = useState(String(settings.publicBudget || ''));
-  const [budgetCurrency, setBudgetCurrency] = useState<'JPY' | 'TWD'>(settings.publicBudgetCurrency);
-  const [apiKey, setApiKey]               = useState('');
-  const [showKey, setShowKey]             = useState(false);
-  const [saved, setSaved]                 = useState(false);
+  const [rateInput, setRateInput]                 = useState(String(settings.exchangeRate));
+  const [pubBudgetInput, setPubBudgetInput]       = useState(String(settings.publicBudget || ''));
+  const [pubBudgetCurrency, setPubBudgetCurrency] = useState<'JPY' | 'TWD'>(settings.publicBudgetCurrency);
+  const [perBudgetInput, setPerBudgetInput]       = useState(String(settings.personalBudget || ''));
+  const [perBudgetCurrency, setPerBudgetCurrency] = useState<'JPY' | 'TWD'>(settings.personalBudgetCurrency);
+  const [apiKey, setApiKey]                       = useState('');
+  const [showKey, setShowKey]                     = useState(false);
+  const [saved, setSaved]                         = useState(false);
 
   useEffect(() => {
     setApiKey(localStorage.getItem('gemini-api-key') ?? '');
@@ -19,17 +21,21 @@ export default function SettingsPage() {
 
   useEffect(() => {
     setRateInput(String(settings.exchangeRate));
-    setBudgetInput(String(settings.publicBudget || ''));
-    setBudgetCurrency(settings.publicBudgetCurrency);
-  }, [settings.exchangeRate, settings.publicBudget, settings.publicBudgetCurrency]);
+    setPubBudgetInput(String(settings.publicBudget || ''));
+    setPubBudgetCurrency(settings.publicBudgetCurrency);
+    setPerBudgetInput(String(settings.personalBudget || ''));
+    setPerBudgetCurrency(settings.personalBudgetCurrency);
+  }, [settings.exchangeRate, settings.publicBudget, settings.publicBudgetCurrency, settings.personalBudget, settings.personalBudgetCurrency]);
 
   function handleSave() {
     dispatch({
       type: 'UPDATE_SETTINGS',
       payload: {
         exchangeRate: parseFloat(rateInput) || 0.22,
-        publicBudget: Math.max(0, parseFloat(budgetInput) || 0),
-        publicBudgetCurrency: budgetCurrency,
+        publicBudget: Math.max(0, parseFloat(pubBudgetInput) || 0),
+        publicBudgetCurrency: pubBudgetCurrency,
+        personalBudget: Math.max(0, parseFloat(perBudgetInput) || 0),
+        personalBudgetCurrency: perBudgetCurrency,
       },
     });
     localStorage.setItem('gemini-api-key', apiKey.trim());
@@ -37,13 +43,16 @@ export default function SettingsPage() {
     setTimeout(() => setSaved(false), 2000);
   }
 
-  const budgetNum = Math.max(0, parseFloat(budgetInput) || 0);
   const rateNum = parseFloat(rateInput) || settings.exchangeRate;
-  const budgetPreview = budgetNum > 0
-    ? budgetCurrency === 'JPY'
-      ? `≈ NT$ ${Math.round(budgetNum * rateNum).toLocaleString()}`
-      : `≈ ¥ ${Math.round(budgetNum / rateNum).toLocaleString()}`
-    : '';
+  const previewFor = (input: string, cur: 'JPY' | 'TWD') => {
+    const n = Math.max(0, parseFloat(input) || 0);
+    if (!n) return '';
+    return cur === 'JPY'
+      ? `≈ NT$ ${Math.round(n * rateNum).toLocaleString()}`
+      : `≈ ¥ ${Math.round(n / rateNum).toLocaleString()}`;
+  };
+  const pubPreview = previewFor(pubBudgetInput, pubBudgetCurrency);
+  const perPreview = previewFor(perBudgetInput, perBudgetCurrency);
 
   function handleClearData() {
     if (confirm('確定要清除所有支出記錄？此動作無法復原。')) {
@@ -76,21 +85,46 @@ export default function SettingsPage() {
           <div>
             <label className="text-xs text-stone-400 mb-1 block">公費總額</label>
             <div className="flex gap-2">
-              <input type="number" step="1" placeholder="例：220000" value={budgetInput}
-                onChange={(e) => setBudgetInput(e.target.value)}
+              <input type="number" step="1" placeholder="例：220000" value={pubBudgetInput}
+                onChange={(e) => setPubBudgetInput(e.target.value)}
                 className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm bg-stone-50" />
-              <select value={budgetCurrency}
-                onChange={(e) => setBudgetCurrency(e.target.value as 'JPY' | 'TWD')}
+              <select value={pubBudgetCurrency}
+                onChange={(e) => setPubBudgetCurrency(e.target.value as 'JPY' | 'TWD')}
                 className="border border-stone-200 rounded-xl px-3 py-2 text-sm bg-stone-50">
                 <option value="JPY">JPY ¥</option>
                 <option value="TWD">TWD NT$</option>
               </select>
             </div>
-            {budgetPreview && (
-              <p className="text-xs mt-1" style={{ color: '#6b8ec4' }}>{budgetPreview}</p>
+            {pubPreview && (
+              <p className="text-xs mt-1" style={{ color: '#6b8ec4' }}>{pubPreview}</p>
             )}
             <p className="text-xs text-stone-400 mt-1">
               換好日幣就選 JPY；還沒換或想用台幣估就選 TWD。公費頁會用選的幣別為主、另一個換算顯示
+            </p>
+          </div>
+        </div>
+
+        {/* 自費預算 */}
+        <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-4 space-y-3">
+          <h2 className="font-semibold text-stone-700">🏠 自費總預算</h2>
+          <div>
+            <label className="text-xs text-stone-400 mb-1 block">自費總額</label>
+            <div className="flex gap-2">
+              <input type="number" step="1" placeholder="例：30000" value={perBudgetInput}
+                onChange={(e) => setPerBudgetInput(e.target.value)}
+                className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm bg-stone-50" />
+              <select value={perBudgetCurrency}
+                onChange={(e) => setPerBudgetCurrency(e.target.value as 'JPY' | 'TWD')}
+                className="border border-stone-200 rounded-xl px-3 py-2 text-sm bg-stone-50">
+                <option value="JPY">JPY ¥</option>
+                <option value="TWD">TWD NT$</option>
+              </select>
+            </div>
+            {perPreview && (
+              <p className="text-xs mt-1" style={{ color: '#c47a7a' }}>{perPreview}</p>
+            )}
+            <p className="text-xs text-stone-400 mt-1">
+              自己家裡花費的預算上限；設 0 或留空則不顯示進度條
             </p>
           </div>
         </div>

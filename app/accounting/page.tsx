@@ -32,8 +32,10 @@ export default function AccountingPage() {
     note: '',
   });
 
-  const { exchangeRate, publicBudget, publicBudgetCurrency } = state.settings;
+  const { exchangeRate, publicBudget, publicBudgetCurrency, personalBudget, personalBudgetCurrency } = state.settings;
   const meta = FUND_META[fundTab];
+  const activeBudget         = fundTab === 'public' ? publicBudget         : personalBudget;
+  const activeBudgetCurrency = fundTab === 'public' ? publicBudgetCurrency : personalBudgetCurrency;
 
   function getRate(e: ExpenseItem) { return e.txRate ?? exchangeRate; }
   function toTWD(e: ExpenseItem) {
@@ -49,10 +51,10 @@ export default function AccountingPage() {
 
   const fmt = (n: number) => Math.round(n).toLocaleString();
 
-  const showBudget = fundTab === 'public' && publicBudget > 0;
+  const showBudget = activeBudget > 0;
   // 預算永遠以 TWD 內部運算
-  const budgetTWD = publicBudgetCurrency === 'JPY' ? publicBudget * exchangeRate : publicBudget;
-  const budgetJPY = publicBudgetCurrency === 'JPY' ? publicBudget : (exchangeRate > 0 ? publicBudget / exchangeRate : 0);
+  const budgetTWD = activeBudgetCurrency === 'JPY' ? activeBudget * exchangeRate : activeBudget;
+  const budgetJPY = activeBudgetCurrency === 'JPY' ? activeBudget : (exchangeRate > 0 ? activeBudget / exchangeRate : 0);
   const totalJPY = exchangeRate > 0 ? totalTWD / exchangeRate : 0;
   const remainingTWD = budgetTWD - totalTWD;
   const remainingJPY = budgetJPY - totalJPY;
@@ -60,7 +62,7 @@ export default function AccountingPage() {
   const overBudget = remainingTWD < 0;
 
   const fmtBudget = (twd: number, jpy: number) =>
-    publicBudgetCurrency === 'JPY'
+    activeBudgetCurrency === 'JPY'
       ? { primary: `¥ ${fmt(jpy)}`, secondary: `≈ NT$ ${fmt(twd)}` }
       : { primary: `NT$ ${fmt(twd)}`, secondary: `≈ ¥ ${fmt(jpy)}` };
 

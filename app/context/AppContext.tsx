@@ -24,6 +24,8 @@ export interface AppState {
     tripDate: string;
     publicBudget: number;
     publicBudgetCurrency: 'JPY' | 'TWD';
+    personalBudget: number;
+    personalBudgetCurrency: 'JPY' | 'TWD';
   };
 }
 
@@ -35,6 +37,8 @@ const defaultState: AppState = {
     tripDate: '',
     publicBudget: 0,
     publicBudgetCurrency: 'TWD',
+    personalBudget: 0,
+    personalBudgetCurrency: 'TWD',
   },
 };
 
