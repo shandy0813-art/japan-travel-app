@@ -5,8 +5,28 @@ import { useApp } from '../context/AppContext';
 import type { AppState } from '../context/AppContext';
 
 export default function SettingsPage() {
-  const { state, dispatch } = useApp();
+  const {
+    state, dispatch,
+    syncCode, syncEnabled, syncStatus, syncMessage,
+    syncNow, enableSync, disableSync,
+  } = useApp();
   const { settings } = state;
+  const [codeInput, setCodeInput] = useState(syncCode);
+  const [syncBusy, setSyncBusy] = useState(false);
+
+  useEffect(() => { setCodeInput(syncCode); }, [syncCode]);
+
+  async function handleSyncEnable() {
+    if (!codeInput.trim()) return;
+    setSyncBusy(true);
+    await enableSync(codeInput);
+    setSyncBusy(false);
+  }
+  async function handleSyncNow() {
+    setSyncBusy(true);
+    await syncNow();
+    setSyncBusy(false);
+  }
   const [rateInput, setRateInput]                 = useState(String(settings.exchangeRate));
   const [pubBudgetInput, setPubBudgetInput]       = useState(String(settings.publicBudget || ''));
   const [pubBudgetCurrency, setPubBudgetCurrency] = useState<'JPY' | 'TWD'>(settings.publicBudgetCurrency);
@@ -190,6 +210,70 @@ export default function SettingsPage() {
               進設定頁會自動抓當日匯率（資料來源：currency-api CDN，每日更新）
             </p>
           </div>
+        </div>
+
+        {/* 雲端同步 */}
+        <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-stone-700">☁️ 雲端同步</h2>
+            {syncEnabled && (
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium
+                ${syncStatus === 'synced' ? 'bg-emerald-50 text-emerald-600'
+                  : syncStatus === 'syncing' ? 'bg-blue-50 text-blue-500'
+                  : syncStatus === 'error'   ? 'bg-rose-50 text-rose-500'
+                  : 'bg-stone-100 text-stone-500'}`}>
+                {syncStatus === 'synced'  ? '✓ 已同步'
+                 : syncStatus === 'syncing' ? '⟳ 同步中'
+                 : syncStatus === 'error'   ? '⚠ 異常'
+                 : '關閉'}
+              </span>
+            )}
+          </div>
+
+          {!syncEnabled ? (
+            <>
+              <div>
+                <label className="text-xs text-stone-400 mb-1 block">同步碼（多人打同一組會共享資料）</label>
+                <input type="text" value={codeInput}
+                  onChange={(e) => setCodeInput(e.target.value)}
+                  placeholder="例：yang-japan-2026"
+                  className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm bg-stone-50" />
+                <p className="text-xs text-stone-400 mt-1">
+                  取重點、別用常見字（例：<code>my-trip</code> 就太好猜）；只認英數/連字號
+                </p>
+              </div>
+              <button onClick={handleSyncEnable}
+                disabled={syncBusy || !codeInput.trim()}
+                className="w-full rounded-xl py-2.5 text-sm font-medium text-white shadow-sm bg-blue-500 disabled:opacity-50">
+                {syncBusy ? '啟用中…' : '☁️ 啟用雲端同步'}
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="bg-stone-50 rounded-xl px-3 py-2 flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-stone-400">目前同步碼</div>
+                  <div className="text-sm font-mono text-stone-700">{syncCode}</div>
+                </div>
+                <button onClick={handleSyncNow} disabled={syncBusy}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-blue-500 text-white disabled:opacity-50">
+                  🔄 立即拉取
+                </button>
+              </div>
+              {syncMessage && (
+                <p className={`text-xs ${syncStatus === 'error' ? 'text-rose-500' : 'text-stone-500'}`}>
+                  {syncMessage}
+                </p>
+              )}
+              <button onClick={disableSync}
+                className="w-full border border-stone-200 text-stone-500 rounded-xl py-2 text-sm font-medium">
+                停用雲端同步（保留本機資料）
+              </button>
+            </>
+          )}
+          <p className="text-xs text-stone-400 pt-1 border-t border-stone-100">
+            💡 老公在他手機也輸入同一組碼就會自動同步。停用只是斷開連線，本機資料不會清掉
+          </p>
         </div>
 
         {/* 公費預算 */}
