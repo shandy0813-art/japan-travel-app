@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
+import type { AppState } from '../context/AppContext';
 
 export default function SettingsPage() {
   const { state, dispatch } = useApp();
@@ -103,6 +104,56 @@ export default function SettingsPage() {
   function handleClearData() {
     if (confirm('確定要清除所有支出記錄？此動作無法復原。')) {
       dispatch({ type: 'LOAD_STATE', payload: { ...state, expenses: [] } });
+    }
+  }
+
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  function handleExport() {
+    const payload = {
+      app: 'japan-travel-app',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      state,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `japan-travel-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const s = data?.state as AppState | undefined;
+      if (!s || !Array.isArray(s.expenses) || !s.settings) {
+        alert('❌ 檔案格式錯誤：不是本 App 匯出的備份');
+        return;
+      }
+      const count = s.expenses.length;
+      const when = typeof data.exportedAt === 'string' ? data.exportedAt.slice(0, 10) : '未知日期';
+      const currentCount = state.expenses.length;
+      const msg = `確定匯入這份備份？將覆蓋目前所有資料。\n\n📥 備份：${count} 筆支出（${when}）\n📤 目前：${currentCount} 筆支出`;
+      if (!confirm(msg)) return;
+      // 合併：舊 settings 保底，避免備份缺欄位
+      const merged: AppState = {
+        expenses: s.expenses,
+        settings: { ...state.settings, ...s.settings },
+      };
+      dispatch({ type: 'LOAD_STATE', payload: merged });
+      alert('✅ 已匯入');
+    } catch {
+      alert('❌ 檔案解析失敗');
+    } finally {
+      if (fileRef.current) fileRef.current.value = '';
     }
   }
 
@@ -230,6 +281,26 @@ export default function SettingsPage() {
               <div className="text-xs text-stone-500 mt-0.5">信用卡筆數</div>
             </div>
           </div>
+        </div>
+
+        {/* 備份/還原 */}
+        <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-4 space-y-3">
+          <h2 className="font-semibold text-stone-700">💾 資料備份 / 還原</h2>
+          <p className="text-xs text-stone-400 -mt-1">
+            資料存在瀏覽器裡，清快取/換裝置會不見。旅程中建議偶爾匯出備份到雲端硬碟或相簿
+          </p>
+          <div className="flex gap-2">
+            <button onClick={handleExport}
+              className="flex-1 bg-emerald-500 text-white rounded-xl py-2.5 text-sm font-medium shadow-sm">
+              📥 匯出備份
+            </button>
+            <button onClick={() => fileRef.current?.click()}
+              className="flex-1 border border-emerald-500 text-emerald-600 rounded-xl py-2.5 text-sm font-medium">
+              📤 匯入備份
+            </button>
+          </div>
+          <input ref={fileRef} type="file" accept="application/json,.json"
+            onChange={handleImport} className="hidden" />
         </div>
 
         {state.expenses.length > 0 && (
