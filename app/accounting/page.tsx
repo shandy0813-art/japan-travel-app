@@ -32,7 +32,7 @@ export default function AccountingPage() {
     note: '',
   });
 
-  const { exchangeRate, publicBudget } = state.settings;
+  const { exchangeRate, publicBudget, publicBudgetCurrency } = state.settings;
   const meta = FUND_META[fundTab];
 
   function getRate(e: ExpenseItem) { return e.txRate ?? exchangeRate; }
@@ -47,9 +47,26 @@ export default function AccountingPage() {
   const totalCreditTWD = creditExpenses.reduce((s, e) => s + toTWD(e), 0);
   const totalTWD       = totalCashTWD + totalCreditTWD;
 
+  const fmt = (n: number) => Math.round(n).toLocaleString();
+
   const showBudget = fundTab === 'public' && publicBudget > 0;
-  const remainingTWD = publicBudget - totalTWD;
-  const usedPct = publicBudget > 0 ? Math.min(100, (totalTWD / publicBudget) * 100) : 0;
+  // 預算永遠以 TWD 內部運算
+  const budgetTWD = publicBudgetCurrency === 'JPY' ? publicBudget * exchangeRate : publicBudget;
+  const budgetJPY = publicBudgetCurrency === 'JPY' ? publicBudget : (exchangeRate > 0 ? publicBudget / exchangeRate : 0);
+  const totalJPY = exchangeRate > 0 ? totalTWD / exchangeRate : 0;
+  const remainingTWD = budgetTWD - totalTWD;
+  const remainingJPY = budgetJPY - totalJPY;
+  const usedPct = budgetTWD > 0 ? Math.min(100, (totalTWD / budgetTWD) * 100) : 0;
+  const overBudget = remainingTWD < 0;
+
+  const fmtBudget = (twd: number, jpy: number) =>
+    publicBudgetCurrency === 'JPY'
+      ? { primary: `¥ ${fmt(jpy)}`, secondary: `≈ NT$ ${fmt(twd)}` }
+      : { primary: `NT$ ${fmt(twd)}`, secondary: `≈ ¥ ${fmt(jpy)}` };
+
+  const budgetLine    = fmtBudget(budgetTWD, budgetJPY);
+  const usedLine      = fmtBudget(totalTWD, totalJPY);
+  const remainingLine = fmtBudget(Math.abs(remainingTWD), Math.abs(remainingJPY));
 
   const displayed = filter === 'all' ? fundExpenses : filter === 'cash' ? cashExpenses : creditExpenses;
   const sorted = [...displayed].sort((a, b) => b.date.localeCompare(a.date));
@@ -73,7 +90,6 @@ export default function AccountingPage() {
     setShowForm(false);
   }
 
-  const fmt = (n: number) => Math.round(n).toLocaleString();
   const showTxRateField = form.paymentMethod === 'credit' && form.currency === 'JPY';
 
   return (
@@ -110,23 +126,28 @@ export default function AccountingPage() {
       {/* 總計卡片 */}
       <div className="mx-4 mt-3 rounded-2xl p-4 text-white shadow-sm"
         style={{ background: meta.gradient }}>
-        <div className="text-xs opacity-80 mb-1">{meta.emoji} {meta.label}總花費（台幣）</div>
-        <div className="text-2xl font-bold tracking-wide">NT$ {fmt(totalTWD)}</div>
+        <div className="text-xs opacity-80 mb-1">{meta.emoji} {meta.label}總花費</div>
+        <div className="text-2xl font-bold tracking-wide">{usedLine.primary}</div>
+        <div className="text-xs opacity-70 mt-0.5">{usedLine.secondary}</div>
 
         {showBudget && (
-          <div className="mt-3 pt-3 border-t border-white/20">
-            <div className="flex justify-between text-xs opacity-80 mb-1.5">
-              <span>預算 NT$ {fmt(publicBudget)}</span>
-              <span className={remainingTWD < 0 ? 'font-semibold' : ''}>
-                {remainingTWD >= 0 ? `剩餘 NT$ ${fmt(remainingTWD)}` : `超支 NT$ ${fmt(-remainingTWD)}`}
+          <div className="mt-3 pt-3 border-t border-white/20 space-y-1.5">
+            <div className="flex justify-between text-xs">
+              <span className="opacity-80">預算 {budgetLine.primary}</span>
+              <span className={overBudget ? 'font-semibold' : 'opacity-90'}>
+                {overBudget ? `超支 ${remainingLine.primary}` : `剩餘 ${remainingLine.primary}`}
               </span>
             </div>
             <div className="h-2 bg-white/25 rounded-full overflow-hidden">
               <div className="h-full rounded-full transition-all"
                 style={{
                   width: `${usedPct}%`,
-                  background: remainingTWD < 0 ? '#fca5a5' : '#ffffff',
+                  background: overBudget ? '#fca5a5' : '#ffffff',
                 }} />
+            </div>
+            <div className="flex justify-between text-[10px] opacity-60">
+              <span>{budgetLine.secondary}</span>
+              <span>{overBudget ? `(${remainingLine.secondary})` : remainingLine.secondary}</span>
             </div>
           </div>
         )}
