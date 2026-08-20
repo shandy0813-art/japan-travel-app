@@ -14,9 +14,51 @@ export default function SettingsPage() {
   const [apiKey, setApiKey]                       = useState('');
   const [showKey, setShowKey]                     = useState(false);
   const [saved, setSaved]                         = useState(false);
+  const [fetching, setFetching]                   = useState(false);
+  const [fetchMsg, setFetchMsg]                   = useState('');
 
   useEffect(() => {
     setApiKey(localStorage.getItem('gemini-api-key') ?? '');
+  }, []);
+
+  async function fetchLiveRate(silent = false): Promise<boolean> {
+    setFetching(true);
+    if (!silent) setFetchMsg('');
+    const urls = [
+      'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/jpy.json',
+      'https://latest.currency-api.pages.dev/v1/currencies/jpy.json',
+    ];
+    for (const url of urls) {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) continue;
+        const data = await res.json();
+        const twd = data?.jpy?.twd;
+        if (typeof twd !== 'number' || twd <= 0) continue;
+        const rounded = Math.round(twd * 10000) / 10000;
+        const today = new Date().toISOString().slice(0, 10);
+        setRateInput(String(rounded));
+        dispatch({
+          type: 'UPDATE_SETTINGS',
+          payload: { exchangeRate: rounded, rateUpdatedAt: today },
+        });
+        setFetchMsg(`✓ 已更新：1 JPY = ${rounded} TWD`);
+        setFetching(false);
+        return true;
+      } catch { /* try next */ }
+    }
+    if (!silent) setFetchMsg('⚠️ 抓取失敗，請檢查網路或手動輸入');
+    setFetching(false);
+    return false;
+  }
+
+  // 每次進設定頁若今天還沒抓過就自動抓一次
+  useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    if (settings.rateUpdatedAt !== today) {
+      fetchLiveRate(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -42,6 +84,10 @@ export default function SettingsPage() {
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
+
+  const rateUpdatedLabel = settings.rateUpdatedAt
+    ? `更新於 ${settings.rateUpdatedAt}`
+    : '尚未自動更新';
 
   const rateNum = parseFloat(rateInput) || settings.exchangeRate;
   const previewFor = (input: string, cur: 'JPY' | 'TWD') => {
@@ -72,10 +118,26 @@ export default function SettingsPage() {
           <h2 className="font-semibold text-stone-700">匯率設定</h2>
           <div>
             <label className="text-xs text-stone-400 mb-1 block">1 JPY ≈ __ TWD</label>
-            <input type="number" step="0.001" value={rateInput}
-              onChange={(e) => setRateInput(e.target.value)}
-              className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm bg-stone-50" />
-            <p className="text-xs text-stone-400 mt-1">例：0.22（出發前請更新最新匯率）</p>
+            <div className="flex gap-2">
+              <input type="number" step="0.0001" value={rateInput}
+                onChange={(e) => setRateInput(e.target.value)}
+                className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm bg-stone-50" />
+              <button onClick={() => fetchLiveRate(false)} disabled={fetching}
+                className="px-3 py-2 rounded-xl text-xs font-medium bg-[#c47a7a] text-white shadow-sm disabled:opacity-50 whitespace-nowrap">
+                {fetching ? '抓取中…' : '🔄 抓最新'}
+              </button>
+            </div>
+            <div className="flex justify-between text-xs mt-1">
+              <span className="text-stone-400">{rateUpdatedLabel}</span>
+              {fetchMsg && (
+                <span className={fetchMsg.startsWith('✓') ? 'text-emerald-500' : 'text-rose-400'}>
+                  {fetchMsg}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-stone-400 mt-1">
+              進設定頁會自動抓當日匯率（資料來源：currency-api CDN，每日更新）
+            </p>
           </div>
         </div>
 

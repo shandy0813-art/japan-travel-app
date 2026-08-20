@@ -26,6 +26,7 @@ export interface AppState {
     publicBudgetCurrency: 'JPY' | 'TWD';
     personalBudget: number;
     personalBudgetCurrency: 'JPY' | 'TWD';
+    rateUpdatedAt: string;
   };
 }
 
@@ -39,6 +40,7 @@ const defaultState: AppState = {
     publicBudgetCurrency: 'TWD',
     personalBudget: 0,
     personalBudgetCurrency: 'TWD',
+    rateUpdatedAt: '',
   },
 };
 
