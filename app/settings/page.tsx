@@ -27,20 +27,30 @@ export default function SettingsPage() {
     await syncNow();
     setSyncBusy(false);
   }
-  const [rateInput, setRateInput]                 = useState(String(settings.exchangeRate));
-  const [pubBudgetInput, setPubBudgetInput]       = useState(String(settings.publicBudget || ''));
-  const [pubBudgetCurrency, setPubBudgetCurrency] = useState<'JPY' | 'TWD'>(settings.publicBudgetCurrency);
-  const [perBudgetInput, setPerBudgetInput]       = useState(String(settings.personalBudget || ''));
-  const [perBudgetCurrency, setPerBudgetCurrency] = useState<'JPY' | 'TWD'>(settings.personalBudgetCurrency);
-  const [apiKey, setApiKey]                       = useState('');
-  const [showKey, setShowKey]                     = useState(false);
-  const [saved, setSaved]                         = useState(false);
-  const [fetching, setFetching]                   = useState(false);
-  const [fetchMsg, setFetchMsg]                   = useState('');
+  const [rateInput, setRateInput] = useState(String(settings.exchangeRate));
+  const [apiKey, setApiKey]       = useState('');
+  const [showKey, setShowKey]     = useState(false);
+  const [saved, setSaved]         = useState(false);
+  const [fetching, setFetching]   = useState(false);
+  const [fetchMsg, setFetchMsg]   = useState('');
 
   useEffect(() => {
     setApiKey(localStorage.getItem('gemini-api-key') ?? '');
   }, []);
+
+  // 只有匯率有 local input state（因為要支援小數點中間狀態），只在匯率變化時同步
+  useEffect(() => {
+    setRateInput(String(settings.exchangeRate));
+  }, [settings.exchangeRate]);
+
+  // 預算/幣別改動直接寫入 state → 立即持久化 + 立即同步雲端
+  function updateBudget(field: 'publicBudget' | 'personalBudget', raw: string) {
+    const n = Math.max(0, parseFloat(raw) || 0);
+    dispatch({ type: 'UPDATE_SETTINGS', payload: { [field]: n } });
+  }
+  function updateCurrency(field: 'publicBudgetCurrency' | 'personalBudgetCurrency', cur: 'JPY' | 'TWD') {
+    dispatch({ type: 'UPDATE_SETTINGS', payload: { [field]: cur } });
+  }
 
   async function fetchLiveRate(silent = false): Promise<boolean> {
     setFetching(true);
@@ -82,24 +92,10 @@ export default function SettingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    setRateInput(String(settings.exchangeRate));
-    setPubBudgetInput(String(settings.publicBudget || ''));
-    setPubBudgetCurrency(settings.publicBudgetCurrency);
-    setPerBudgetInput(String(settings.personalBudget || ''));
-    setPerBudgetCurrency(settings.personalBudgetCurrency);
-  }, [settings.exchangeRate, settings.publicBudget, settings.publicBudgetCurrency, settings.personalBudget, settings.personalBudgetCurrency]);
-
   function handleSave() {
     dispatch({
       type: 'UPDATE_SETTINGS',
-      payload: {
-        exchangeRate: parseFloat(rateInput) || 0.22,
-        publicBudget: Math.max(0, parseFloat(pubBudgetInput) || 0),
-        publicBudgetCurrency: pubBudgetCurrency,
-        personalBudget: Math.max(0, parseFloat(perBudgetInput) || 0),
-        personalBudgetCurrency: perBudgetCurrency,
-      },
+      payload: { exchangeRate: parseFloat(rateInput) || 0.22 },
     });
     localStorage.setItem('gemini-api-key', apiKey.trim());
     setSaved(true);
@@ -111,15 +107,14 @@ export default function SettingsPage() {
     : '尚未自動更新';
 
   const rateNum = parseFloat(rateInput) || settings.exchangeRate;
-  const previewFor = (input: string, cur: 'JPY' | 'TWD') => {
-    const n = Math.max(0, parseFloat(input) || 0);
+  const previewFor = (n: number, cur: 'JPY' | 'TWD') => {
     if (!n) return '';
     return cur === 'JPY'
       ? `≈ NT$ ${Math.round(n * rateNum).toLocaleString()}`
       : `≈ ¥ ${Math.round(n / rateNum).toLocaleString()}`;
   };
-  const pubPreview = previewFor(pubBudgetInput, pubBudgetCurrency);
-  const perPreview = previewFor(perBudgetInput, perBudgetCurrency);
+  const pubPreview = previewFor(settings.publicBudget, settings.publicBudgetCurrency);
+  const perPreview = previewFor(settings.personalBudget, settings.personalBudgetCurrency);
 
   function handleClearData() {
     if (confirm('確定要清除所有支出記錄？此動作無法復原。')) {
@@ -278,15 +273,19 @@ export default function SettingsPage() {
 
         {/* 公費預算 */}
         <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-4 space-y-3">
-          <h2 className="font-semibold text-stone-700">🏛️ 公費總預算</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-stone-700">🏛️ 公費總預算</h2>
+            <span className="text-xs text-emerald-500">✓ 自動儲存</span>
+          </div>
           <div>
             <label className="text-xs text-stone-400 mb-1 block">公費總額</label>
             <div className="flex gap-2">
-              <input type="number" step="1" placeholder="例：220000" value={pubBudgetInput}
-                onChange={(e) => setPubBudgetInput(e.target.value)}
+              <input type="number" step="1" placeholder="例：220000"
+                value={settings.publicBudget || ''}
+                onChange={(e) => updateBudget('publicBudget', e.target.value)}
                 className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm bg-stone-50" />
-              <select value={pubBudgetCurrency}
-                onChange={(e) => setPubBudgetCurrency(e.target.value as 'JPY' | 'TWD')}
+              <select value={settings.publicBudgetCurrency}
+                onChange={(e) => updateCurrency('publicBudgetCurrency', e.target.value as 'JPY' | 'TWD')}
                 className="border border-stone-200 rounded-xl px-3 py-2 text-sm bg-stone-50">
                 <option value="JPY">JPY ¥</option>
                 <option value="TWD">TWD NT$</option>
@@ -303,15 +302,19 @@ export default function SettingsPage() {
 
         {/* 自費預算 */}
         <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-4 space-y-3">
-          <h2 className="font-semibold text-stone-700">🏠 自費總預算</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-stone-700">🏠 自費總預算</h2>
+            <span className="text-xs text-emerald-500">✓ 自動儲存</span>
+          </div>
           <div>
             <label className="text-xs text-stone-400 mb-1 block">自費總額</label>
             <div className="flex gap-2">
-              <input type="number" step="1" placeholder="例：30000" value={perBudgetInput}
-                onChange={(e) => setPerBudgetInput(e.target.value)}
+              <input type="number" step="1" placeholder="例：30000"
+                value={settings.personalBudget || ''}
+                onChange={(e) => updateBudget('personalBudget', e.target.value)}
                 className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm bg-stone-50" />
-              <select value={perBudgetCurrency}
-                onChange={(e) => setPerBudgetCurrency(e.target.value as 'JPY' | 'TWD')}
+              <select value={settings.personalBudgetCurrency}
+                onChange={(e) => updateCurrency('personalBudgetCurrency', e.target.value as 'JPY' | 'TWD')}
                 className="border border-stone-200 rounded-xl px-3 py-2 text-sm bg-stone-50">
                 <option value="JPY">JPY ¥</option>
                 <option value="TWD">TWD NT$</option>
@@ -347,8 +350,11 @@ export default function SettingsPage() {
         <button onClick={handleSave}
           className={`w-full rounded-xl py-2.5 text-sm font-medium transition-colors text-white shadow-sm
             ${saved ? 'bg-emerald-400' : 'bg-[#c47a7a]'}`}>
-          {saved ? '✓ 已儲存' : '儲存設定'}
+          {saved ? '✓ 已儲存' : '儲存匯率 & API Key'}
         </button>
+        <p className="text-xs text-stone-400 -mt-2 text-center">
+          預算跟同步碼會自動儲存，只有匯率跟 API Key 要按這裡
+        </p>
 
         {/* 資料統計 */}
         <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-4">
