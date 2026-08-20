@@ -6,17 +6,29 @@ import { useApp } from '../context/AppContext';
 export default function SettingsPage() {
   const { state, dispatch } = useApp();
   const { settings } = state;
-  const [rateInput, setRateInput] = useState(String(settings.exchangeRate));
-  const [apiKey, setApiKey]       = useState('');
-  const [showKey, setShowKey]     = useState(false);
-  const [saved, setSaved]         = useState(false);
+  const [rateInput, setRateInput]     = useState(String(settings.exchangeRate));
+  const [budgetInput, setBudgetInput] = useState(String(settings.publicBudget || ''));
+  const [apiKey, setApiKey]           = useState('');
+  const [showKey, setShowKey]         = useState(false);
+  const [saved, setSaved]             = useState(false);
 
   useEffect(() => {
     setApiKey(localStorage.getItem('gemini-api-key') ?? '');
   }, []);
 
+  useEffect(() => {
+    setRateInput(String(settings.exchangeRate));
+    setBudgetInput(String(settings.publicBudget || ''));
+  }, [settings.exchangeRate, settings.publicBudget]);
+
   function handleSave() {
-    dispatch({ type: 'UPDATE_SETTINGS', payload: { exchangeRate: parseFloat(rateInput) || 0.22 } });
+    dispatch({
+      type: 'UPDATE_SETTINGS',
+      payload: {
+        exchangeRate: parseFloat(rateInput) || 0.22,
+        publicBudget: Math.max(0, parseFloat(budgetInput) || 0),
+      },
+    });
     localStorage.setItem('gemini-api-key', apiKey.trim());
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -44,6 +56,18 @@ export default function SettingsPage() {
               onChange={(e) => setRateInput(e.target.value)}
               className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm bg-stone-50" />
             <p className="text-xs text-stone-400 mt-1">例：0.22（出發前請更新最新匯率）</p>
+          </div>
+        </div>
+
+        {/* 公費預算 */}
+        <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-4 space-y-3">
+          <h2 className="font-semibold text-stone-700">🏛️ 公費總預算</h2>
+          <div>
+            <label className="text-xs text-stone-400 mb-1 block">公費總額（TWD）</label>
+            <input type="number" step="1" placeholder="例：50000" value={budgetInput}
+              onChange={(e) => setBudgetInput(e.target.value)}
+              className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm bg-stone-50" />
+            <p className="text-xs text-stone-400 mt-1">設定後，公費頁會顯示已用/剩餘/進度條；設 0 或留空則不顯示</p>
           </div>
         </div>
 

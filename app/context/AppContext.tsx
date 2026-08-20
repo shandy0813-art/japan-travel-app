@@ -2,6 +2,8 @@
 
 import { createContext, useContext, useEffect, useReducer, useRef, ReactNode } from 'react';
 
+export type FundSource = 'public' | 'personal';
+
 export interface ExpenseItem {
   id: string;
   date: string;
@@ -9,6 +11,7 @@ export interface ExpenseItem {
   amount: number;
   currency: 'JPY' | 'TWD';
   paymentMethod: 'cash' | 'credit';
+  fundSource: FundSource;
   txRate?: number;
   note: string;
 }
@@ -19,6 +22,7 @@ export interface AppState {
     exchangeRate: number;
     nickname: string;
     tripDate: string;
+    publicBudget: number;
   };
 }
 
@@ -28,6 +32,7 @@ const defaultState: AppState = {
     exchangeRate: 0.22,
     nickname: '旅行者',
     tripDate: '',
+    publicBudget: 0,
   },
 };
 
@@ -63,8 +68,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        const data = JSON.parse(saved);
-        if (data) dispatch({ type: 'LOAD_STATE', payload: data });
+        const data = JSON.parse(saved) as Partial<AppState>;
+        const migrated: AppState = {
+          expenses: (data.expenses ?? []).map((e) => ({
+            ...e,
+            fundSource: e.fundSource ?? 'personal',
+          })),
+          settings: {
+            ...defaultState.settings,
+            ...(data.settings ?? {}),
+          },
+        };
+        dispatch({ type: 'LOAD_STATE', payload: migrated });
       }
     } catch {}
     loaded.current = true;
